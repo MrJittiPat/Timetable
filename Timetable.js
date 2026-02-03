@@ -87,4 +87,4 @@ app.get('/logout', (req, res) => {
 
 app.get('/', (req, res) => res.redirect('/login'));
 
-app.listen(3000, () => console.log('Server started on http://localhost:80'));
+app.listen(80, () => console.log('Server started on http://localhost:80'));
