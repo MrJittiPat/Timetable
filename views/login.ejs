@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เข้าสู่ระบบ - ระบบจัดตารางสอน AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #800000; /* สีแดงเลือดหมู */
+            --primary-dark: #4a0000;
+            --text-color: #333;
+            --bg-gradient: linear-gradient(135deg, #800000 0%, #2c0000 100%);
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background: var(--bg-gradient);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            overflow: hidden; /* ป้องกัน Scrollbar */
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px 35px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            position: relative;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        /* หัวข้อ */
+        .login-header h2 {
+            margin: 0 0 10px 0;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 1.8rem;
+        }
+
+        .login-header p {
+            margin: 0 0 30px 0;
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        /* ฟอร์ม input */
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            box-sizing: border-box; /* สำคัญ: ให้ padding ไม่ดันความกว้าง */
+            font-family: 'Sarabun', sans-serif;
+            font-size: 1rem;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(128, 0, 0, 0.1);
+        }
+
+        /* ปุ่ม Login */
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-family: 'Sarabun', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        /* กล่องข้อความ Error */
+        .error-message {
+            background-color: #ffe6e6;
+            color: #d8000c;
+            border: 1px solid #ffb3b3;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Footer เล็กๆ */
+        .footer-text {
+            margin-top: 25px;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+
+        /* Animation */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo-icon">📅</div>
+            <h2>ยินดีต้อนรับ</h2>
+            <p>ระบบจัดตารางสอน AI อัจฉริยะ</p>
+        </div>
+
+        <% if (error) { %>
+            <div class="error-message">
+                <span>⚠️ <%= error %></span>
+            </div>
+        <% } %>
+
+        <form action="/login" method="POST">
+            <div class="form-group">
+                <label for="username">ชื่อผู้ใช้งาน</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="admin" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password">รหัสผ่าน</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="••••" required>
+            </div>
+
+            <button type="submit" class="btn-login">เข้าสู่ระบบ</button>
+        </form>
+
+        <div class="footer-text">
+            © 2024 AI Scheduler System
+        </div>
+    </div>
+
+</body>
+</html>

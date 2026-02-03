@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ระบบจัดตารางสอน AI Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #800000;
+            --bg-color: #f2f4f6;
+            --card-bg: #ffffff;
+            --border-color: #dcdcdc;
+            --cell-width: 85px; 
+            --day-col-width: 80px;
+            --header-height: 65px;
+        }
+
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); margin: 0; padding-bottom: 50px; }
+
+        /* Navbar */
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), #5c0000);
+            color: white; padding: 20px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); position: sticky; top: 0; z-index: 1000;
+        }
+        .brand-logo { font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .controls {
+            display: flex; gap: 10px; align-items: center;
+            background: rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 30px;
+            backdrop-filter: blur(5px);
+        }
+        .controls select {
+            border: none; border-radius: 15px; padding: 5px 10px;
+            font-family: 'Sarabun'; font-weight: 600; font-size: 0.95rem;
+            color: var(--primary-color); cursor: pointer; outline: none; background: #fff;
+        }
+        .controls label { font-size: 0.9rem; color: #f0f0f0; }
+
+        .btn-group { display: flex; gap: 8px; align-items: center; }
+        .btn {
+            border: none; padding: 8px 16px; border-radius: 20px;
+            font-family: 'Sarabun'; font-weight: 600; font-size: 0.9rem;
+            cursor: pointer; color: white; display: flex; align-items: center; gap: 6px;
+            text-decoration: none; transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-csv { background: #e67e22; }
+        .btn-excel { background: #217346; }
+        .btn-pdf { background: #b30b00; }
+        .btn-gen { background: #27ae60; margin-left: 15px; }
+        .btn-clear { background: #7f8c8d; }
+        .btn-logout { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); }
+
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 15px; }
+        .card {
+            background: var(--card-bg); border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 5px solid var(--primary-color);
+            overflow-x: auto; margin-bottom: 20px;
+        }
+
+        .header-text { text-align: center; margin: 10px 0 25px; color: #333; font-size: 1.6rem; font-weight: 600; }
+
+        /* Timetable UI */
+        .timetable { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .timetable th, .timetable td {
+            border: 1px solid var(--border-color);
+            text-align: center; vertical-align: middle; padding: 0;
+            box-sizing: border-box; width: var(--cell-width); height: 60px;
+        }
+        .timetable thead th { background-color: #fffafa; color: var(--primary-color); height: var(--header-height); border-bottom: 2px solid var(--primary-color); padding: 5px 0; }
+        .time-label { font-size: 0.75rem; font-weight: 700; display: block; white-space: nowrap; }
+        .period-label { font-size: 0.7rem; color: #666; display: block; margin-top: 2px; }
+        .day-col { background-color: var(--primary-color); color: white; font-weight: 600; font-size: 1rem; width: var(--day-col-width); }
+        .break-cell { background-color: #f0f0f0; color: #888; font-weight: bold; font-size: 0.9rem; width: 40px !important; }
+        .break-header { background: #e9e9e9 !important; width: 40px !important; }
+
+        .slot-content { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2px; overflow: hidden; }
+        .has-class { background-color: #fff; cursor: pointer; transition: 0.2s; }
+        .has-class:hover { background-color: #fff0f0; box-shadow: inset 0 0 0 1px var(--primary-color); }
+        .subject-code { font-weight: 700; color: var(--primary-color); font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .detail-text { font-size: 0.65rem; color: #555; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .empty-text { color: #e0e0e0; font-size: 1rem; }
+
+        /* Summary Section (For Screen Only) */
+        .summary-container { display: flex; gap: 20px; margin-top: 20px; align-items: stretch; }
+        .summary-box { flex: 1; background: white; border-radius: 12px; padding: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid var(--border-color); display: none; flex-direction: column; }
+        .summary-header { background: #f8f9fa; padding: 10px; text-align: center; font-weight: 700; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); }
+        .summary-table { width: 100%; border-collapse: collapse; flex-grow: 1; }
+        .summary-table th, .summary-table td { border: 1px solid #eee; padding: 8px 5px; text-align: center; font-size: 0.85rem; }
+        .summary-table td.text-left { text-align: left !important; padding-left: 10px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+        .summary-table th { background-color: var(--primary-color); color: white; font-weight: 500; }
+        .subtotal-row { background-color: #f1f1f1 !important; font-weight: bold; color: #444; }
+        .grand-total-row { background-color: #f1f1f1 !important; font-weight: bold; color: #444; border-top: 2px solid var(--primary-color); }
+        .spacer-row td { background-color: white !important; border: none !important; color: transparent !important; }
+
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="brand-logo"><i class="fas fa-calendar-alt"></i> ระบบจัดตารางสอน AI</div>
+        
+        <div class="controls">
+            <label>มุมมอง:</label>
+            <select id="viewSelect" onchange="updateItemList()">
+                <option value="group">กลุ่มเรียน</option>
+                <option value="teacher">ครูผู้สอน</option>
+                <option value="room">ห้องเรียน</option>
+            </select>
+            
+            <label style="margin-left:5px;">รายการ:</label>
+            <select id="itemSelect" onchange="renderTimetable()">
+                <option value="">-- เลือก --</option>
+            </select>
+        </div>
+
+        <div class="btn-group">
+            <a href="/download/csv" class="btn btn-csv"><i class="fas fa-file-csv"></i> CSV</a>
+            <button onclick="exportExcel()" class="btn btn-excel"><i class="fas fa-file-excel"></i> Excel</button>
+            <button onclick="generatePDF()" class="btn btn-pdf"><i class="fas fa-print"></i> PDF / พิมพ์</button>
+
+            <form action="/generate" method="POST" style="margin:0;"><button class="btn btn-gen"><i class="fas fa-bolt"></i> จัดตาราง</button></form>
+            <form action="/clear" method="POST" style="margin:0;"><button class="btn btn-clear"><i class="fas fa-trash"></i> ล้าง</button></form>
+            <a href="/logout" class="btn btn-logout"><i class="fas fa-sign-out-alt"></i> ออก</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2 id="tableHeader" class="header-text">ยินดีต้อนรับ</h2>
+
+            <table class="timetable" id="mainTimetable">
+                <thead>
+                    <tr>
+                        <th class="day-col">วัน/เวลา</th>
+                        <th><span class="time-label">08.00-09.00</span><span class="period-label">คาบที่ 1</span></th>
+                        <th><span class="time-label">09.00-10.00</span><span class="period-label">คาบที่ 2</span></th>
+                        <th><span class="time-label">10.00-11.00</span><span class="period-label">คาบที่ 3</span></th>
+                        <th><span class="time-label">11.00-12.00</span><span class="period-label">คาบที่ 4</span></th>
+                        <th class="break-header"><span class="time-label" style="font-size:0.7rem;">12-13</span><span class="period-label">พัก</span></th>
+                        <th><span class="time-label">13.00-14.00</span><span class="period-label">คาบที่ 6</span></th>
+                        <th><span class="time-label">14.00-15.00</span><span class="period-label">คาบที่ 7</span></th>
+                        <th><span class="time-label">15.00-16.00</span><span class="period-label">คาบที่ 8</span></th>
+                        <th><span class="time-label">16.00-17.00</span><span class="period-label">คาบที่ 9</span></th>
+                        <th><span class="time-label">17.00-18.00</span><span class="period-label">คาบที่ 10</span></th>
+                        <th><span class="time-label">18.00-19.00</span><span class="period-label">คาบที่ 11</span></th>
+                        <th><span class="time-label">19.00-20.00</span><span class="period-label">คาบที่ 12</span></th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div class="summary-container" id="summaryContainer" style="display:none;">
+            <div class="summary-box" id="summaryLeftBox">
+                <div class="summary-header">รายวิชา (ส่วนที่ 1)</div>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">ลำดับ</th><th style="width: 90px;">รหัสวิชา</th><th class="text-left">ชื่อวิชา</th>
+                            <th style="width: 30px;">ท</th><th style="width: 30px;">ป</th><th style="width: 30px;">น</th><th style="width: 40px;">รวม</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryLeftBody"></tbody>
+                </table>
+            </div>
+            <div class="summary-box" id="summaryRightBox">
+                <div class="summary-header">รายวิชา (ส่วนที่ 2)</div>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">ลำดับ</th><th style="width: 90px;">รหัสวิชา</th><th class="text-left">ชื่อวิชา</th>
+                            <th style="width: 30px;">ท</th><th style="width: 30px;">ป</th><th style="width: 30px;">น</th><th style="width: 40px;">รวม</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryRightBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawData = <%- JSON.stringify(schedule) %>;
+        const subjectInfo = <%- JSON.stringify(subjects) %>; 
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+        const dayMap = { 'Mon': 'จันทร์', 'Tue': 'อังคาร', 'Wed': 'พุธ', 'Thu': 'พฤหัสฯ', 'Fri': 'ศุกร์' };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(rawData.length > 0) updateItemList();
+            else document.getElementById('tableBody').innerHTML = '<tr><td colspan="13" style="padding:40px; color:#ccc;">ยังไม่มีข้อมูล กรุณากด "จัดตาราง"</td></tr>';
+        });
+
+        function updateItemList() {
+            const view = document.getElementById('viewSelect').value;
+            const itemSelect = document.getElementById('itemSelect');
+            itemSelect.innerHTML = '<option value="">-- เลือกรายการ --</option>';
+            const items = new Set();
+            rawData.forEach(r => {
+                if(view === 'group') items.add(r.group_id);
+                else if(view === 'teacher') items.add(r.teacher_id);
+                else if(view === 'room') items.add(r.room_id);
+            });
+            Array.from(items).sort().forEach(i => {
+                const opt = document.createElement('option');
+                opt.value = i; opt.textContent = i; itemSelect.appendChild(opt);
+            });
+            if(itemSelect.options.length > 1) { itemSelect.selectedIndex = 1; renderTimetable(); }
+        }
+
+        function renderTimetable() {
+            // (Code เหมือนเดิม ใช้ฟังก์ชันเดิมได้เลย แต่ขอละไว้เพื่อความกระชับ)
+            // ... [ส่วนนี้เหมือนเดิมจากคำตอบก่อนหน้า] ...
+            const view = document.getElementById('viewSelect').value;
+            const selected = document.getElementById('itemSelect').value;
+            const tbody = document.getElementById('tableBody');
+            const summaryContainer = document.getElementById('summaryContainer');
+            const tbodyLeft = document.getElementById('summaryLeftBody');
+            const tbodyRight = document.getElementById('summaryRightBody');
+            const titles = {'group': 'ตารางเรียนกลุ่ม', 'teacher': 'ตารางสอนครู', 'room': 'ตารางห้อง'};
+            document.getElementById('tableHeader').innerText = selected ? `${titles[view]}: ${selected}` : 'แสดงตารางสอน';
+            if (!selected) { summaryContainer.style.display = 'none'; return; }
+            tbody.innerHTML = '';
+            const filtered = rawData.filter(r => {
+                if(view === 'group') return r.group_id === selected;
+                if(view === 'teacher') return r.teacher_id === selected;
+                if(view === 'room') return r.room_id === selected;
+                return false;
+            });
+            days.forEach(day => {
+                const tr = document.createElement('tr');
+                const tdDay = document.createElement('td'); tdDay.className = 'day-col'; tdDay.innerText = dayMap[day]; tr.appendChild(tdDay);
+                let skipCount = 0;
+                for(let p = 1; p <= 12; p++) {
+                    if(p === 5) { const tdBreak = document.createElement('td'); tdBreak.className = 'break-cell'; tdBreak.innerText = 'พัก'; tr.appendChild(tdBreak); continue; }
+                    if (skipCount > 0) { skipCount--; continue; }
+                    const currentSlot = filtered.find(r => r.day === day && parseInt(r.period) === p);
+                    if (currentSlot) {
+                        let colspan = 1;
+                        for (let nextP = p + 1; nextP <= 12; nextP++) {
+                            if (nextP === 5) break; 
+                            const nextSlot = filtered.find(r => r.day === day && parseInt(r.period) === nextP);
+                            if (nextSlot && nextSlot.subject_id === currentSlot.subject_id && nextSlot.teacher_id === currentSlot.teacher_id && nextSlot.room_id === currentSlot.room_id) { colspan++; } else { break; }
+                        }
+                        const td = document.createElement('td'); td.className = 'has-class';
+                        if (colspan > 1) { td.setAttribute('colspan', colspan); skipCount = colspan - 1; }
+                        let line1 = '', line2 = '';
+                        if(view === 'group') { line1 = currentSlot.subject_id; line2 = `${currentSlot.teacher_id} (${currentSlot.room_id})`; }
+                        else if(view === 'teacher') { line1 = currentSlot.subject_id; line2 = `${currentSlot.group_id} (${currentSlot.room_id})`; }
+                        else { line1 = currentSlot.subject_id; line2 = `${currentSlot.group_id} - ${currentSlot.teacher_id}`; }
+                        td.innerHTML = `<div class="slot-content"><div class="subject-code">${line1}</div><div class="detail-text">${line2}</div></div>`;
+                        tr.appendChild(td);
+                    } else { const td = document.createElement('td'); td.innerHTML = '<span class="empty-text">-</span>'; tr.appendChild(td); }
+                }
+                tbody.appendChild(tr);
+            });
+            summaryContainer.style.display = 'flex';
+            document.getElementById('summaryLeftBox').style.display = 'flex'; document.getElementById('summaryRightBox').style.display = 'flex';
+            tbodyLeft.innerHTML = ''; tbodyRight.innerHTML = '';
+            const uniqueSubjects = new Set(); filtered.forEach(r => uniqueSubjects.add(r.subject_id));
+            const subjectList = Array.from(uniqueSubjects).sort();
+            const midIndex = Math.ceil(subjectList.length / 2);
+            const leftList = subjectList.slice(0, midIndex); const rightList = subjectList.slice(midIndex);
+            let leftSum = { t:0, p:0, c:0, total:0 }; let rightSum = { t:0, p:0, c:0, total:0 };
+            function createRow(subId, index) {
+                const info = subjectInfo[subId] || { name: 'ไม่พบข้อมูล', theory: 0, practice: 0, credit: 0 };
+                const total = info.theory + info.practice;
+                return { html: `<tr><td>${index + 1}</td><td>${subId}</td><td class="text-left" title="${info.name}">${info.name}</td><td>${info.theory}</td><td>${info.practice}</td><td>${info.credit}</td><td>${total}</td></tr>`, info: info, total: total };
+            }
+            leftList.forEach((subId, idx) => { const row = createRow(subId, idx); tbodyLeft.innerHTML += row.html; leftSum.t += row.info.theory; leftSum.p += row.info.practice; leftSum.c += row.info.credit; leftSum.total += row.total; });
+            rightList.forEach((subId, idx) => { const row = createRow(subId, idx + midIndex); tbodyRight.innerHTML += row.html; rightSum.t += row.info.theory; rightSum.p += row.info.practice; rightSum.c += row.info.credit; rightSum.total += row.total; });
+            tbodyLeft.innerHTML += `<tr class="subtotal-row"><td colspan="3" class="text-right">รวมย่อย</td><td>${leftSum.t}</td><td>${leftSum.p}</td><td>${leftSum.c}</td><td>${leftSum.total}</td></tr>`;
+            tbodyRight.innerHTML += `<tr class="subtotal-row"><td colspan="3" class="text-right">รวมย่อย</td><td>${rightSum.t}</td><td>${rightSum.p}</td><td>${rightSum.c}</td><td>${rightSum.total}</td></tr>`;
+            const grandTotal = { t: leftSum.t + rightSum.t, p: leftSum.p + rightSum.p, c: leftSum.c + rightSum.c, total: leftSum.total + rightSum.total };
+            tbodyRight.innerHTML += `<tr class="grand-total-row"><td colspan="3" class="text-right">รวมทั้งหมด</td><td>${grandTotal.t}</td><td>${grandTotal.p}</td><td>${grandTotal.c}</td><td>${grandTotal.total}</td></tr>`;
+            tbodyLeft.innerHTML += `<tr class="spacer-row"><td colspan="7">&nbsp;</td></tr>`;
+            if (leftList.length === 0 && rightList.length === 0) summaryContainer.style.display = 'none';
+        }
+
+        // --- Export Excel ---
+        function exportExcel() {
+            if(rawData.length === 0) { alert('ไม่มีข้อมูล'); return; }
+            const worksheet = XLSX.utils.json_to_sheet(rawData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Schedule");
+            XLSX.writeFile(workbook, "timetable.xlsx");
+        }
+
+        // --- Generate PDF (High Quality / Vector / Thai Font) ---
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            
+            // 1. โหลดฟอนต์ TH Sarabun New (จำเป็นต้องใช้ Base64 หรือ Fetch เพื่อให้ jsPDF รองรับไทย)
+            // เนื่องจากข้อจำกัดความยาวโค้ด ผมจะใช้การ Fetch จาก URL ที่เป็น Public CDN
+            const fontUrl = 'https://raw.githubusercontent.com/naiwin/THSarabunNew/master/fonts/THSarabunNew.ttf';
+            const fontBoldUrl = 'https://raw.githubusercontent.com/naiwin/THSarabunNew/master/fonts/THSarabunNew%20Bold.ttf';
+            
+            // โหลด Image
+            const logoUrl = "https://veis2.ac.th/wp-content/uploads/2022/06/cropped-SOUTHERN-REGION-2-new.png";
+            
+            // Helper โหลดไฟล์
+            async function loadFile(url) {
+                const res = await fetch(url);
+                return await res.arrayBuffer();
+            }
+
+            // Helper แปลง Image to Base64 (เพื่อเลี่ยง CORS ใน PDF)
+            async function getBase64ImageFromUrl(imageUrl) {
+                try {
+                    const res = await fetch(imageUrl);
+                    const blob = await res.blob();
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch(e) { return null; }
+            }
+
+            try {
+                // สร้าง Doc แนวนอน
+                const doc = new jsPDF('l', 'mm', 'a4');
+                
+                // Add Fonts
+                const fontData = await loadFile(fontUrl);
+                const fontBoldData = await loadFile(fontBoldUrl);
+                
+                doc.addFileToVFS("THSarabunNew.ttf", Buffer.from(fontData).toString('binary'));
+                doc.addFileToVFS("THSarabunNew-Bold.ttf", Buffer.from(fontBoldData).toString('binary'));
+                doc.addFont("THSarabunNew.ttf", "Sarabun", "normal");
+                doc.addFont("THSarabunNew-Bold.ttf", "Sarabun", "bold");
+                doc.setFont("Sarabun");
+
+                // Prepare Data
+                const selected = document.getElementById('itemSelect').value;
+                const view = document.getElementById('viewSelect').value;
+                if(!selected) { alert("กรุณาเลือกรายการก่อนพิมพ์"); return; }
+                
+                const titles = {'group': 'กลุ่มเรียน', 'teacher': 'ครูผู้สอน', 'room': 'ห้องเรียน'};
+                const titleText = `${titles[view]}: ${selected}`;
+
+                // --- HEADER SECTION ---
+                const logoBase64 = await getBase64ImageFromUrl(logoUrl);
+                
+                // Left Box Content
+                if(logoBase64) {
+                    doc.addImage(logoBase64, 'PNG', 15, 10, 20, 20); // Logo
+                }
+                
+                doc.setFontSize(16);
+                doc.setFont("Sarabun", "bold");
+                doc.text("วิทยาลัยเทคนิคพังงา", 40, 20);
+                
+                doc.setFontSize(14);
+                doc.setFont("Sarabun", "normal");
+                doc.text("ครูที่ปรึกษา.......................................................", 40, 28);
+                doc.text(titleText, 40, 35);
+
+                // Right Box Content (Summary Table - Small)
+                // ดึงข้อมูลสรุปจากตาราง HTML ที่คำนวณไว้แล้ว
+                const summaryRows = [];
+                const summaryTableLeft = document.getElementById('summaryLeftBody').querySelectorAll('tr');
+                const summaryTableRight = document.getElementById('summaryRightBody').querySelectorAll('tr');
+
+                // รวมข้อมูลจากตารางซ้ายขวาในหน้าเว็บ มาเป็นลิสต์เดียว
+                const allSummaryTrs = [...summaryTableLeft, ...summaryTableRight];
+                allSummaryTrs.forEach(tr => {
+                    if(tr.className.includes('spacer')) return;
+                    const tds = tr.querySelectorAll('td');
+                    // ถ้าเป็นแถว Grand Total ให้ใส่สีพื้นหลัง
+                    summaryRows.push([
+                        tds[1]?.innerText || '', // รหัส
+                        tds[2]?.innerText || '', // ชื่อ
+                        tds[3]?.innerText || '', // ท
+                        tds[4]?.innerText || '', // ป
+                        tds[5]?.innerText || '', // น
+                        tds[6]?.innerText || ''  // รวม
+                    ]);
+                });
+
+                // วาดตารางสรุปไว้ด้านขวาบน
+                doc.autoTable({
+                    head: [['รหัส', 'ชื่อวิชา', 'ท', 'ป', 'น', 'รวม']],
+                    body: summaryRows,
+                    startY: 10,
+                    margin: { left: 160 }, // ดันไปขวา
+                    theme: 'grid',
+                    styles: { font: 'Sarabun', fontSize: 10, lineColor: [0,0,0], lineWidth: 0.1 },
+                    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+                    columnStyles: { 0: {cellWidth: 20}, 1: {cellWidth: 60}, 2: {cellWidth: 8}, 3: {cellWidth: 8}, 4: {cellWidth: 8}, 5: {cellWidth: 10} }
+                });
+
+                // --- MAIN TIMETABLE ---
+                const startY = doc.lastAutoTable.finalY > 40 ? doc.lastAutoTable.finalY + 10 : 50;
+
+                // สร้างข้อมูลสำหรับตารางสอน
+                // ต้องแมพข้อมูลจาก filtered data มาลง Grid 5 วัน x 12 คาบ
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                const dayLabel = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสฯ', 'ศุกร์'];
+                
+                const tableBody = [];
+                const filtered = rawData.filter(r => {
+                    if(view === 'group') return r.group_id === selected;
+                    if(view === 'teacher') return r.teacher_id === selected;
+                    if(view === 'room') return r.room_id === selected;
+                    return false;
+                });
+
+                for(let i=0; i<days.length; i++) {
+                    const row = [dayLabel[i]]; // คอลัมน์แรกคือวัน
+                    const d = days[i];
+                    
+                    let skipCount = 0;
+                    for(let p=1; p<=12; p++) {
+                        if(p===5) { row.push({ content: 'พัก', styles: { fillColor: [220, 220, 220], halign: 'center', valign: 'middle' } }); continue; }
+                        
+                        if(skipCount > 0) { skipCount--; continue; } // ถ้าถูก merge ไปแล้ว
+
+                        const slot = filtered.find(r => r.day === d && parseInt(r.period) === p);
+                        if(slot) {
+                            // Check colspan
+                            let colspan = 1;
+                            for(let nextP = p+1; nextP<=12; nextP++) {
+                                if(nextP===5) break;
+                                const nextSlot = filtered.find(r => r.day === d && parseInt(r.period) === nextP);
+                                if(nextSlot && nextSlot.subject_id === slot.subject_id && nextSlot.teacher_id === slot.teacher_id) colspan++;
+                                else break;
+                            }
+                            
+                            // Cell Content
+                            let txt = "";
+                            if(view === 'group') txt = `${slot.subject_id}\n${slot.teacher_id} (${slot.room_id})`;
+                            else if(view === 'teacher') txt = `${slot.subject_id}\n${slot.group_id} (${slot.room_id})`;
+                            else txt = `${slot.subject_id}\n${slot.group_id} - ${slot.teacher_id}`;
+
+                            row.push({ content: txt, colSpan: colspan, styles: { halign: 'center', valign: 'middle' } });
+                            skipCount = colspan - 1;
+                        } else {
+                            row.push("");
+                        }
+                    }
+                    tableBody.push(row);
+                }
+
+                doc.autoTable({
+                    head: [['วัน/เวลา', '08.00\n09.00', '09.00\n10.00', '10.00\n11.00', '11.00\n12.00', '12.00\n13.00', '13.00\n14.00', '14.00\n15.00', '15.00\n16.00', '16.00\n17.00', '17.00\n18.00', '18.00\n19.00', '19.00\n20.00']],
+                    body: tableBody,
+                    startY: startY,
+                    theme: 'grid',
+                    styles: { font: 'Sarabun', fontSize: 9, lineColor: [0,0,0], lineWidth: 0.1, cellPadding: 1 },
+                    headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
+                    columnStyles: { 0: {cellWidth: 20, fontStyle: 'bold', fillColor: [245, 245, 245]} } // Day Column
+                });
+
+                // --- FOOTER SIGNATURES ---
+                const footerY = doc.lastAutoTable.finalY + 20;
+                doc.setFontSize(11);
+                
+                // Box 1
+                doc.text("ลงชื่อ.......................................................", 30, footerY);
+                doc.text("หัวหน้าแผนกวิชา", 45, footerY + 7);
+
+                // Box 2
+                doc.text("ลงชื่อ.......................................................", 120, footerY);
+                doc.text("หัวหน้างานพัฒนาหลักสูตรฯ", 132, footerY + 7);
+
+                // Box 3
+                doc.text("ลงชื่อ.......................................................", 210, footerY);
+                doc.text("ผู้อำนวยการวิทยาลัย", 225, footerY + 7);
+
+                // Preview (Open in new tab)
+                window.open(doc.output('bloburl'), '_blank');
+
+            } catch (error) {
+                console.error(error);
+                alert("เกิดข้อผิดพลาดในการสร้าง PDF: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
