@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
@@ -17,9 +17,9 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          script:
+          script: |
             cd /home/Timetable
             git pull origin main
             npm install
-            pm2 restart Timetable.js
+            pm2 restart Timetable
             pm2 save
